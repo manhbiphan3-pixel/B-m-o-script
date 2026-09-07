@@ -1,0 +1,160 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local UserInputService = game:GetService("UserInputService")
+
+local Player = Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+
+Player.CharacterAdded:Connect(function(char)
+	Character = char
+	Humanoid = char:WaitForChild("Humanoid")
+end)
+
+pcall(function()
+	StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.TouchControls, false)
+end)
+
+if Player:WaitForChild("PlayerGui"):FindFirstChild("FatChicken") then
+	Player.PlayerGui.FatChicken:Destroy()
+end
+
+local CONTAINER_SIZE = 210
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "FatChicken"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.Parent = Player:WaitForChild("PlayerGui")
+
+local Container = Instance.new("Frame")
+Container.Size = UDim2.new(0, CONTAINER_SIZE, 0, CONTAINER_SIZE)
+Container.BackgroundTransparency = 1
+Container.Position = UDim2.new(0.01, 0, 0.42, 0)
+Container.Parent = ScreenGui
+
+local radius = 76 
+local buttons = {}
+local directions = {
+	["Up"] = Vector3.new(0, 0, -1),
+	["UpRight"] = Vector3.new(1, 0, -1).Unit,
+	["Right"] = Vector3.new(1, 0, 0),
+	["DownRight"] = Vector3.new(1, 0, 1).Unit,
+	["Down"] = Vector3.new(0, 0, 1),
+	["DownLeft"] = Vector3.new(-1, 0, 1).Unit,
+	["Left"] = Vector3.new(-1, 0, 0),
+	["UpLeft"] = Vector3.new(-1, 0, -1).Unit
+}
+
+local function createButton(name, rotationDeg, angleDeg)
+	local rad = math.rad(angleDeg)
+	local btnSize = 42
+	local x = (CONTAINER_SIZE / 2) + radius * math.sin(rad) - (btnSize / 2)
+	local y = (CONTAINER_SIZE / 2) - radius * math.cos(rad) - (btnSize / 2)
+
+	local btn = Instance.new("TextButton")
+	btn.Name = name
+	btn.Size = UDim2.new(0, btnSize, 0, btnSize)
+	btn.Position = UDim2.new(0, x, 0, y)
+	btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+	btn.BackgroundTransparency = 0.35
+	btn.Text = ""
+	btn.AutoButtonColor = false
+	btn.Parent = Container
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0.3, 0)
+	corner.Parent = btn
+
+	local arrow = Instance.new("TextLabel")
+	arrow.Size = UDim2.new(1, 0, 1, 0)
+	arrow.BackgroundTransparency = 1
+	arrow.Text = "▲"
+	arrow.TextColor3 = Color3.fromRGB(240, 240, 240)
+	arrow.TextSize = 13
+	arrow.Font = Enum.Font.SourceSansBold
+	arrow.Rotation = rotationDeg
+	arrow.Parent = btn
+
+	buttons[name] = btn
+	return btn
+end
+
+createButton("Up", 0, 0)
+createButton("UpRight", 45, 45)
+createButton("Right", 90, 90)
+createButton("DownRight", 135, 135)
+createButton("Down", 180, 180)
+createButton("DownLeft", 225, 225)
+createButton("Left", 270, 270)
+createButton("UpLeft", 315, 315)
+
+-- Biến quản lý cảm ứng vuốt kéo xa
+local activeInput = nil
+local currentDirName = nil
+
+Container.InputBegan:Connect(function(input)
+	if (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1) and not activeInput then
+		activeInput = input
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input == activeInput then
+		activeInput = nil
+		currentDirName = nil
+	end
+end)
+
+RunService.RenderStepped:Connect(function()
+	if activeInput then
+		local pos = activeInput.Position
+		local containerAbsolute = Container.AbsolutePosition
+		local center = containerAbsolute + Vector2.new(CONTAINER_SIZE/2, CONTAINER_SIZE/2)
+		local delta = Vector2.new(pos.X, pos.Y) - center
+		
+		if delta.Magnitude > 10 then -- Nếu kéo ra khỏi tâm một chút sẽ nhận hướng
+			local angle = math.deg(math.atan2(delta.X, -delta.Y))
+			if angle < 0 then angle = angle + 360 end
+			
+			-- Chia góc thành 8 hướng (mỗi hướng 45 độ)
+			if angle >= 337.5 or angle < 22.5 then currentDirName = "Up"
+			elseif angle >= 22.5 and angle < 67.5 then currentDirName = "UpRight"
+			elseif angle >= 67.5 and angle < 112.5 then currentDirName = "Right"
+			elseif angle >= 112.5 and angle < 157.5 then currentDirName = "DownRight"
+			elseif angle >= 157.5 and angle < 202.5 then currentDirName = "Down"
+			elseif angle >= 202.5 and angle < 247.5 then currentDirName = "DownLeft"
+			elseif angle >= 247.5 and angle < 292.5 then currentDirName = "Left"
+			elseif angle >= 292.5 and angle < 337.5 then currentDirName = "UpLeft"
+			end
+		end
+	else
+		currentDirName = nil
+	end
+
+	-- Đổi màu sáng nút đang nhận hướng
+	for name, btn in pairs(buttons) do
+		if name == currentDirName then
+			btn.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+			btn.BackgroundTransparency = 0.15
+		else
+			btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+			btn.BackgroundTransparency = 0.35
+		end
+	end
+
+	local totalMove = Vector3.zero
+	if currentDirName and directions[currentDirName] then
+		totalMove = directions[currentDirName]
+	end
+
+	if not Humanoid or not Humanoid.Parent then return end
+
+	local seat = Humanoid.SeatPart
+	if seat and seat:IsA("VehicleSeat") then
+		seat.Throttle = -totalMove.Z
+		seat.Steer = totalMove.X
+	else
+		Humanoid:Move(totalMove, true)
+	end
+end)

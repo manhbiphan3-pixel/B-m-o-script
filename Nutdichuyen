@@ -100,6 +100,7 @@ createButton("DownLeft", 225, 225)
 createButton("Left", 270, 270)
 createButton("UpLeft", 315, 315)
 
+-- Khi kéo ngón tay ra xa, cập nhật hướng theo góc xoay từ tâm cụm nút
 UserInputService.InputChanged:Connect(function(input)
 	if input == activeInput then
 		local pos = input.Position
@@ -107,7 +108,6 @@ UserInputService.InputChanged:Connect(function(input)
 		local center = containerAbsolute + Vector2.new(CONTAINER_SIZE/2, CONTAINER_SIZE/2)
 		local delta = Vector2.new(pos.X, pos.Y) - center
 		
-		-- Dù bấm vào nút rồi kéo ra xa, hệ thống vẫn tính góc trượt mượt mà
 		local angle = math.deg(math.atan2(delta.X, -delta.Y))
 		if angle < 0 then angle = angle + 360 end
 		
